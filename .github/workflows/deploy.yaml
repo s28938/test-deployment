@@ -1,0 +1,36 @@
+# This workflow updates image version of particular service and commits changes to main branch.
+
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'Name of the application to deploy'
+        required: true
+        type: choice
+        options:
+          - 'test-app'
+          - 'test-api-gw'
+      version:
+        description: 'Version of the application ~ docker image tag'
+        required: true
+        type: string
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Setup git config
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"
+      - name: Print application name and version
+        run: echo ${{ github.event.inputs.app }}:${{ github.event.inputs.version }}
+      - name: Update application version
+        run: sed -i -e "/^\([[:space:]]*version:\ \).*/s//\1${{ github.event.inputs.version }}/" charts/${{ github.event.inputs.app }}/values.yaml
+      - name: Commit changes
+        run: git add charts/${{ github.event.inputs.app }}/values.yaml && git commit -m "Update '${{ github.event.inputs.app }}' version to ${{ github.event.inputs.version }}"
+      - name: Push changes
+        run: git push
