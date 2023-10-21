@@ -1,0 +1,7 @@
+apiVersion: v2
+name: test-api-gw
+description: A Helm chart for test-api-gw
+kubeVersion: '>=1.15.3'
+type: application
+version: 0.0.0
+dependencies: []
