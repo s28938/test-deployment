@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: test-app
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    namespace: test-system
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    path: charts/test-app
+    repoURL: https://github.com/pbak-pjatk/test-deployment.git #TODO Update me
+    targetRevision: HEAD
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
