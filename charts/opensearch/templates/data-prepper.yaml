@@ -1,27 +1,11 @@
 apiVersion: v1
 data:
-  data-prepper-wait-for-os-and-start.sh: |
-    #!/bin/bash
-
-    until [[ $(curl --write-out %{http_code} --output /dev/null --silent --head --fail https://opensearch-cluster-master:9200 -u admin:admin --insecure) == 200 ]]; do
-      echo "Waiting for OpenSearch to be ready"
-      sleep 1
-    done
-
-    java -Xms128m -Xmx128m -jar /usr/share/data-prepper/data-prepper.jar /appconfig/trace_analytics_example_pipelines.yml /appconfig/trace_analytics_no_ssl.yml
-  trace_analytics_no_ssl.yml: |
-    ssl: false
-  trace_analytics_example_pipelines.yml: |
+  pipelines.yaml: |
     entry-pipeline:
       delay: "100"
       source:
         otel_trace_source:
           ssl: false
-      prepper:
-        - peer_forwarder:
-            discovery_mode: "dns"
-            domain_name: "data-prepper-headless"
-            ssl: false
       sink:
         - pipeline:
             name: "raw-pipeline"
@@ -31,29 +15,38 @@ data:
       source:
         pipeline:
           name: "entry-pipeline"
-      prepper:
-        - otel_trace_raw_prepper:
+      processor:
+        - otel_trace_raw:
       sink:
         - opensearch:
             hosts: [ "https://opensearch-cluster-master:9200" ]
+            index_type: trace-analytics-raw
             insecure: true
             username: "admin"
             password: "admin"
-            trace_analytics_raw: true
     service-map-pipeline:
       delay: "100"
       source:
         pipeline:
           name: "entry-pipeline"
-      prepper:
+      processor:
         - service_map_stateful:
+          # The window duration is the maximum length of time the data prepper stores the most recent trace data to evaluvate service-map relationships.
+          # The default is 3 minutes, this means we can detect relationships between services from spans reported in last 3 minutes.
+          # Set higher value if your applications have higher latency.
+          window_duration: 180
       sink:
         - opensearch:
             hosts: ["https://opensearch-cluster-master:9200"]
+            index_type: trace-analytics-service-map
             insecure: true
             username: "admin"
             password: "admin"
-            trace_analytics_service_map: true
+  data-prepper-config.yaml: |
+    ssl: false
+    peer_forwarder:
+      discovery_mode: dns
+      domain_name: "data-prepper-headless"
 kind: ConfigMap
 metadata:
   name: data-prepper-config
@@ -65,6 +58,7 @@ metadata:
   labels:
     app: data-prepper
   name: data-prepper
+  namespace: opensearch
 spec:
   replicas: 1
   selector:
@@ -75,27 +69,36 @@ spec:
   template:
     metadata:
       labels:
-        app.network/my-network: "true"
         app: data-prepper
     spec:
       containers:
-      - args:
-        - sh
-        - /appconfig/data-prepper-wait-for-os-and-start.sh
-        image: opensearchproject/data-prepper:latest
-        name: data-prepper
-        ports:
-        - containerPort: 21890
-        resources: {}
-        volumeMounts:
-        - mountPath: /appconfig
-          name: prepper-configmap-claim0
+        - image: opensearchproject/data-prepper:2
+          name: data-prepper
+          ports:
+            - containerPort: 21890
+          resources: {}
+          volumeMounts:
+            - name: prepper-configmap-config
+              mountPath: /usr/share/data-prepper/config/data-prepper-config.yaml
+              subPath: data-prepper-config.yaml
+            - name: prepper-configmap-pipelines
+              mountPath: /usr/share/data-prepper/pipelines/pipelines.yaml
+              subPath: pipelines.yaml
       restartPolicy: Always
       serviceAccountName: ""
       volumes:
-      - name: prepper-configmap-claim0
-        configMap:
-          name: data-prepper-config
+        - name: prepper-configmap-config
+          configMap:
+            name: data-prepper-config
+            items:
+              - key: data-prepper-config.yaml
+                path: data-prepper-config.yaml
+        - name: prepper-configmap-pipelines
+          configMap:
+            name: data-prepper-config
+            items:
+              - key: pipelines.yaml
+                path: pipelines.yaml
 ---
 apiVersion: v1
 kind: Service
