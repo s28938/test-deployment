@@ -1,0 +1,15 @@
+apiVersion: v2
+name: opensearch-stack
+description: A Helm chart for opensearch-stack
+kubeVersion: '>=1.15.3'
+type: application
+version: 0.1.0
+dependencies:
+- name: opensearch
+  alias: opensearch
+  version: 1.8.3
+  condition: opensearch.enabled
+- name: opensearch-dashboards
+  alias: opensearch-dashboards
+  version: 1.2.2
+  condition: opensearch-dashboards.enabled

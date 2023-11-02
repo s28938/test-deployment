@@ -1,0 +1,9 @@
+apiVersion: v2
+name: fluent-bit
+description: A Helm chart for fluent-bit
+type: application
+version: 0.1.0
+dependencies:
+- name: fluent-bit
+  alias: fluent-bit
+  version: 0.19.21

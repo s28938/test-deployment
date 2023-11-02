@@ -1,0 +1,131 @@
+apiVersion: v1
+data:
+  pipelines.yaml: |
+    entry-pipeline:
+      delay: "100"
+      source:
+        otel_trace_source:
+          ssl: false
+      sink:
+        - pipeline:
+            name: "raw-pipeline"
+        - pipeline:
+            name: "service-map-pipeline"
+    raw-pipeline:
+      source:
+        pipeline:
+          name: "entry-pipeline"
+      processor:
+        - otel_trace_raw:
+      sink:
+        - opensearch:
+            hosts: [ "https://opensearch-cluster-master:9200" ]
+            index_type: trace-analytics-raw
+            insecure: true
+            username: "admin"
+            password: "admin"
+    service-map-pipeline:
+      delay: "100"
+      source:
+        pipeline:
+          name: "entry-pipeline"
+      processor:
+        - service_map_stateful:
+          # The window duration is the maximum length of time the data prepper stores the most recent trace data to evaluvate service-map relationships.
+          # The default is 3 minutes, this means we can detect relationships between services from spans reported in last 3 minutes.
+          # Set higher value if your applications have higher latency.
+          window_duration: 180
+      sink:
+        - opensearch:
+            hosts: ["https://opensearch-cluster-master:9200"]
+            index_type: trace-analytics-service-map
+            insecure: true
+            username: "admin"
+            password: "admin"
+  data-prepper-config.yaml: |
+    ssl: false
+    peer_forwarder:
+      discovery_mode: dns
+      domain_name: "data-prepper-headless"
+kind: ConfigMap
+metadata:
+  name: data-prepper-config
+  namespace: opensearch
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: data-prepper
+  name: data-prepper
+  namespace: opensearch
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-prepper
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: data-prepper
+    spec:
+      containers:
+        - image: opensearchproject/data-prepper:2
+          name: data-prepper
+          ports:
+            - containerPort: 21890
+          resources: {}
+          volumeMounts:
+            - name: prepper-configmap-config
+              mountPath: /usr/share/data-prepper/config/data-prepper-config.yaml
+              subPath: data-prepper-config.yaml
+            - name: prepper-configmap-pipelines
+              mountPath: /usr/share/data-prepper/pipelines/pipelines.yaml
+              subPath: pipelines.yaml
+      restartPolicy: Always
+      serviceAccountName: ""
+      volumes:
+        - name: prepper-configmap-config
+          configMap:
+            name: data-prepper-config
+            items:
+              - key: data-prepper-config.yaml
+                path: data-prepper-config.yaml
+        - name: prepper-configmap-pipelines
+          configMap:
+            name: data-prepper-config
+            items:
+              - key: pipelines.yaml
+                path: pipelines.yaml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: data-prepper
+  name: data-prepper
+spec:
+  ports:
+  - name: "21890"
+    port: 21890
+    targetPort: 21890
+  selector:
+    app: data-prepper
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: data-prepper
+  name: data-prepper-headless
+spec:
+  clusterIP: None
+  ports:
+  - name: "21890"
+    port: 21890
+    targetPort: 21890
+  selector:
+    app: data-prepper
+---
