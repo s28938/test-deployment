@@ -62,7 +62,7 @@ opensearch-dashboards:
     repository: opensearchproject/opensearch-dashboards
   enabled: true
   ingress:
-    enabled: true
+    enabled: false
     hosts:
       - host: opensearch.example.com
         paths:
