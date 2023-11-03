@@ -7,4 +7,4 @@ resources:
   - test-app-application.yaml
   - test-api-gw-application.yaml
   - opensearch-application.yaml # Installation of OpenSearch, OpenTelemetry Collector & Data Prepper
-#  - fluent-bit-application.yaml # Installation of Fluent-bit
+  - fluent-bit-application.yaml # Installation of Fluent-bit
