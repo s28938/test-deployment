@@ -19,6 +19,6 @@ spec:
     spec:
       containers:
       - name: test-api-gw
-        image: "pbakpjatk/test-api-gw:{{ .Values.image.version }}"
+        image: "s28938/test-api-gw:{{ .Values.image.version }}"
         ports:
         - containerPort: {{ .Values.port }}
