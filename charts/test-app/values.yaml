@@ -2,4 +2,4 @@ name: test-app
 port: 8080
 replicas: 1
 image:
-  version: 0.1.0-build.1f1b7f5
+  version: 0.1.0-build.9790700
