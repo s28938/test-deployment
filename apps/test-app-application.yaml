@@ -11,7 +11,7 @@ spec:
   project: default
   source:
     path: charts/test-app
-    repoURL: https://github.com/s28938/test-deployment.git #TODO Update me
+    repoURL: https://github.com/pbak-pjatk/test-deployment.git #TODO Update me
     targetRevision: HEAD
   syncPolicy:
     automated:
